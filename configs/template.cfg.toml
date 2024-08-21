@@ -1,0 +1,79 @@
+#通用配置
+[common]
+#部署服务所在服务器IP地址
+#此属性应用于一二级api网关之间，二级网关向一级网关注册注册自己地址
+#在同一个局域网下，可以用内网IP地址，效率更高
+local-ip = ""
+[common.redis]
+addr = ""
+pass = ""
+db = 0
+#运行日志配置
+#运行日志以日期为纬度去划分
+[common.log]
+#输出目录
+out-dir = ""
+#错误日志文件名称
+error-file = ""
+
+#反向代理服务
+[proxy]
+#默认代理服务对象地址
+target = ""
+#反向代理服务端口以:开头
+listen = ""
+#负载均衡
+[proxy.balance]
+#策略[robin,ip-hash]
+policy = ""
+#限流
+[proxy.rate.limit]
+enable = 0
+count-second = 0 #每秒限制次数(>0)
+#跨域配置
+[proxy.cors]
+enable = 0
+[[proxy.cors.rules]]
+match = "" #匹配微服务名称 匹配规则为空代表全匹配 正则匹配
+match-path=""#匹配路径 匹配规则为空代表全匹配 正则匹配
+allow-origin = ""#允许源地址，默认* 逗号区隔
+allow-headers = ""#允许请求头，默认* 逗号区隔
+allow-methods = ""#允许请求方法，默认* 逗号区隔
+expose-headers = "" #扩展请求头 逗号区隔
+
+#服务注册
+[register]
+#端口以:开头
+listen = ""
+#微服务有效时间(秒为单位)
+service-expire = 0
+
+#服务缓存
+[service.cache]
+enable = 0
+name = ""#存储名称
+#微服务写入间隔时间(秒为单位)
+interval-second = 0
+
+#二级网关
+[secondary]
+enable = 0
+#一级网关服务注册地址
+primary = ""
+#服务注册间隔时间(秒为单位)
+interval-second = 0
+
+#集群
+[cluster]
+enable = 1
+#本地节点
+[cluster.local]
+ip = ""
+port = ""
+#从节点信息
+[cluster.replicaSet]
+address = []
+#节点间握手信息
+[cluster.replicaSet.handshake]
+interval = 0 #间隔时间（秒为单位）
+service-expire = 0 #节点有效时间(秒为单位)

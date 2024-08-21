@@ -1,0 +1,35 @@
+[common.redis]
+addr = "172.17.0.1:6379"
+db = 0
+[common.log]
+out-dir = "./logs/"
+error-file = "error.log"
+
+[proxy]
+target = "http://localhost:8081"
+listen = ":7089"
+[proxy.rate.limit]
+enable = 1
+count-second = 80000
+[proxy.cors]
+enable = 1
+[[proxy.cors.rules]]
+match = "captcha"
+allow-origin = "*"
+allow-headers = "*"
+allow-methods = "POST"
+expose-headers = "X-Server-Name"
+[[proxy.cors.rules]]
+match = "yxgpcheck"
+allow-origin = "*"
+allow-headers = "*"
+allow-methods = "POST"
+
+[register]
+listen = ":8081"
+service-expire = 120
+
+[service.cache]
+enable = 1
+name = "_servc_list"
+interval-second = 300

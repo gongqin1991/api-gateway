@@ -1,0 +1,24 @@
+[common]
+local-ip = "127.0.0.1"
+[common.redis]
+addr = "127.0.0.1:6379"
+db = 0
+[common.log]
+out-dir = "./logs/"
+error-file = "error.log"
+
+[proxy]
+target = "http://localhost:8087"
+listen = ":7089"
+[proxy.cors]
+enable = 1
+[[proxy.cors.rules]]
+match = "captcha"
+allow-origin = "*"
+allow-headers = "*"
+allow-methods = "POST"
+expose-headers = "X-Server-Name"
+
+[register]
+listen = ":8087"
+service-expire = 36000
