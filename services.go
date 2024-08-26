@@ -1,58 +1,58 @@
 package main
 
 import (
-	"awesomeProject/pkg/cache"
-	"awesomeProject/pkg/parallel"
 	"encoding/json"
 	"fmt"
 	"github.com/spf13/viper"
 	"net"
+	"sync"
 	"time"
 )
 
-type businessService struct {
-	Name    string `json:"ms"`
-	Path    string `json:"path"`
-	Host    string `json:"host,omitempty"`
-	Port    string `json:"port,omitempty"`
-	Gateway bool   `json:"gateway"`
+type BusinessService struct {
+	Name      string `json:"ms"`
+	Path      string `json:"path"`
+	Host      string `json:"host,omitempty"`
+	Port      string `json:"port,omitempty"`
+	Gateway   bool   `json:"gateway"`
+	refreshAt int64
 }
 
 type ServiceSpec struct {
-	Services *cache.MemCache[businessService]
+	Services       []*BusinessService
+	serviceExpires int64
+	mu             sync.Mutex
 }
 
-var (
-	servicelist = &ServiceSpec{
-		Services: &cache.MemCache[businessService]{LState: cache.LockSync},
-	}
-)
+var servicelist = &ServiceSpec{}
 
 func (spec *ServiceSpec) Setup() {
 	expire := viper.GetInt64("register.service-expire")
-	spec.Services.Expire = cache.ToDuration(expire, time.Second)
-	spec.Services.Init()
+	spec.serviceExpires = expire
+	spec.Services = make([]*BusinessService, 0)
 }
 
 func LoadServices() {
 	keyname := viper.GetString("service.cache.name")
 	servlistStr, err := dao.redis.Get(keyname).Result()
 	if err == nil {
-		servlist := make([]businessService, 0)
-		_ = json.Unmarshal([]byte(servlistStr), &servlist)
+		servlist := make([]*BusinessService, 0)
+		discard(json.Unmarshal([]byte(servlistStr), &servlist))
 		fmt.Println("recovery services:", servlistStr)
+		ts := clock()
 		for _, serv := range servlist {
-			servicelist.Services.Set(serv.Name, serv)
+			serv.refreshAt = ts
 		}
+		servicelist.Services = servlist
 	}
 }
 
 func CacheServices(stop <-chan struct{}) {
 	cacheName := viper.GetString("service.cache.name")
 	interval := viper.GetInt64("service.cache.interval-second")
-	intervalDur := cache.ToDuration(interval, time.Second)
+	intervalDur := ToDuration(interval, time.Second)
 	tick := time.NewTicker(intervalDur)
-	parallel.Tick(tick, stop, func() {
+	Tick(tick, stop, func() {
 		list := servicelist.ValidServices()
 		servBytes, _ := json.Marshal(list)
 		servStr := string(servBytes)
@@ -72,7 +72,7 @@ func localAddress() string {
 	return localAddr.IP.String()
 }
 
-func (serv businessService) Addr() string {
+func (serv BusinessService) Addr() string {
 	host := serv.Host
 	port := serv.Port
 	if host == "" {
@@ -81,20 +81,43 @@ func (serv businessService) Addr() string {
 	return host + port
 }
 
-func (serv businessService) PrefixPath() string {
+func (serv BusinessService) PrefixPath() string {
 	if serv.Path != "" {
 		return serv.Path
 	}
 	return "/" + serv.Name
 }
 
-func (spec *ServiceSpec) ValidServices() []businessService {
-	list := make([]businessService, 0)
-	spec.Services.HasNext(func(service businessService, expireAt int64) bool {
-		if !serviceExpired(expireAt) { //未过期
-			list = append(list, service)
+func (spec *ServiceSpec) ValidServices() []BusinessService {
+	services := make([]BusinessService, 0)
+	spec.mu.Lock()
+	defer spec.mu.Unlock()
+	for _, service := range spec.Services {
+		if !serviceExpired(service.refreshAt + SECOND*spec.serviceExpires) {
+			services = append(services, *service)
 		}
-		return true
-	})
-	return list
+	}
+	return services
+}
+
+func (spec *ServiceSpec) AddService(bisKey string, serv *BusinessService) {
+	serv.refreshAt = clock()
+	spec.mu.Lock()
+	defer spec.mu.Unlock()
+	dict := make(map[string]int)
+	var (
+		key string
+	)
+	for i, service := range spec.Services {
+		key = service.Name
+		if key == "" {
+			key = service.Addr()
+		}
+		dict[key] = i
+	}
+	if index, ok := dict[bisKey]; ok {
+		spec.Services[index] = serv
+	} else {
+		spec.Services = append(spec.Services, serv)
+	}
 }

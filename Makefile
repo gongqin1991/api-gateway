@@ -1,9 +1,13 @@
-.PHONY: build clean local deploy test nginx cluster primary
+.PHONY: build clean local deploy startup_mp
+
+DELIVER ?=debug #部署服务器
+PLATFORM ?=main#部署渠道
+CFG_FILETYPE ?=toml #启动配置文件类型
+BUILD_SERVER ?=root@106.75.108.101 #编译服务器
+TARGET_SERVER ?=root@106.75.49.211 #目标服务器
 
 UNAME := $(shell uname)
 ARCH := $(shell arch)
-DELIVER ?=mp
-PLATFORM ?=main
 
 #uname大写变小写
 UNAME := $(shell echo $(UNAME) | tr A-Z a-z)
@@ -11,42 +15,22 @@ UNAME := $(shell echo $(UNAME) | tr A-Z a-z)
 ifeq ($(ARCH),x86_64)
 	ARCH := amd64
 endif
+
 #远程部署
 deploy:
-	sh scripts/deploy.sh $(DELIVER) $(PLATFORM)
+	sh scripts/deploy.sh $(DELIVER) $(PLATFORM) $(CFG_FILETYPE) $(BUILD_SERVER) $(TARGET_SERVER)
 
-#本地测试
-test:local
+#本地启动
+local:build
 	./main --cfg=configs/local.cfg.toml
 
-#仅仅只是替换nginx location文件
-nginx:
-	make DELIVER=nginx PLATFORM=location
-
-#集群化部署
-cluster:
-	@echo ">>!!!deploy server 106.75.108.101"
-	make PLATFORM=rep101
-	@echo ">>!!!deploy server 106.75.49.211"
-	make PLATFORM=rep211
-
-#一级网关
-primary:
-	make DELIVER=primary PLATFORM=primary
-
-secondary:
-	make DELIVER=secondary PLATFORM=sec101
-	make DELIVER=secondary PLATFORM=sec211
-
-
+#编译
 build:
-	@echo $(UNAME)
-	@echo $(ARCH)
-	CGO_ENABLED=0 GOOS=$(UNAME) GOARCH=$(ARCH) go build -o main -tags "nomsgpack" -ldflags "-w -s -X 'main.environment=$(DELIVER)'"
+	@echo ">>uname:$(UNAME)"
+	@echo ">>arch:$(ARCH)"
+	CGO_ENABLED=0 GOOS=$(UNAME) GOARCH=$(ARCH) go build -o main -tags "nomsgpack" -ldflags "-w -s -X 'main.environment=$(DELIVER)'" -buildvcs=false
 
-local:clean
-	go build -o main -tags "nomsgpack" -ldflags "-w -s -X 'main.environment=debug'"
-
+#清除本地文件
 clean:
 	rm -rf main
 	rm -rf servc
@@ -54,4 +38,11 @@ clean:
 	rm -rf cfg.toml
 	rm -rf deploy.sh
 
-
+#启动mp环境服务
+startup_mp:
+	cp /usr/share/zoneinfo/Asia/Shanghai .
+	@echo "$(shell pwd)"
+	@source ../docker_funcs.sh && \
+	remove_image_container api mp && \
+    make_image api mp && \
+    run_container api mp

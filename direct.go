@@ -4,7 +4,7 @@ import "github.com/spf13/viper"
 
 func DirectRequest(request *DirectorRequest) {
 	log := logger.WithContext(request.Context())
-	printService := func(log *Logger, serv businessService) bool {
+	printService := func(log *Logger, serv BusinessService) bool {
 		log.Info("match path service:", serv)
 		return true
 	}

@@ -12,12 +12,6 @@ target = "http://localhost:8087"
 listen = ":7089"
 [proxy.cors]
 enable = 1
-[[proxy.cors.rules]]
-match = "captcha"
-allow-origin = "*"
-allow-headers = "*"
-allow-methods = "POST"
-expose-headers = "X-Server-Name"
 
 [register]
 listen = ":8087"

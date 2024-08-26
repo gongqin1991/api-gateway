@@ -1,8 +1,6 @@
 package main
 
 import (
-	"awesomeProject/pkg/cache"
-	"awesomeProject/pkg/parallel"
 	"bytes"
 	"encoding/json"
 	"github.com/spf13/viper"
@@ -15,7 +13,7 @@ func SecondaryRegistry(stop <-chan struct{}) {
 	localip := viper.GetString("common.local-ip")
 	proxyPort := viper.GetString("proxy.listen")
 	interval := viper.GetInt64("secondary.interval-second")
-	tick := time.NewTicker(cache.ToDuration(interval, time.Second))
+	tick := time.NewTicker(ToDuration(interval, time.Second))
 	if localip == "" {
 		localip = localAddress()
 	}
@@ -37,5 +35,5 @@ func SecondaryRegistry(stop <-chan struct{}) {
 		}
 	}
 	do()
-	parallel.Tick(tick, stop, func() { do() })
+	Tick(tick, stop, do)
 }

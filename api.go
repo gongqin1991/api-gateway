@@ -12,7 +12,7 @@ import (
 // @url params struct:main.bisService
 // desc:服务注册接口
 func registerService(c *gin.Context) {
-	req := new(businessService)
+	req := new(BusinessService)
 	if err := c.BindJSON(req); err != nil {
 		logger.Error("request parameters", err)
 		c.String(http.StatusBadRequest, "bad request")
@@ -23,7 +23,7 @@ func registerService(c *gin.Context) {
 	if bisKey == "" {
 		bisKey = serv.Addr()
 	}
-	servicelist.Services.Set(bisKey, serv)
+	servicelist.AddService(bisKey, &serv)
 	c.String(http.StatusOK, "pong")
 }
 
@@ -40,7 +40,7 @@ func registeredServices(c *gin.Context) {
 // @url params struct:main.bisService
 // desc:获取匹配的注册服务接口
 func getService(c *gin.Context) {
-	req := new(businessService)
+	req := new(BusinessService)
 	if err := c.BindJSON(req); err != nil {
 		logger.Error("request parameters", err)
 		c.String(http.StatusBadRequest, "bad request")

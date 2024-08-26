@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -83,7 +82,7 @@ func (p *DirectorRequest) FetchReplica(log *Logger, addr *string) bool {
 	getServer := false
 	var (
 		skip        = make([]string, 0)
-		skipReplica = func(item replicaNode) bool {
+		skipReplica = func(item ReplicaNode) bool {
 			if item.RPort == "" {
 				return true
 			}
@@ -102,7 +101,7 @@ func (p *DirectorRequest) FetchReplica(log *Logger, addr *string) bool {
 		log.Infof("handle gateway:%v", ips)
 	}
 retry:
-	replicaSet := make([]replicaNode, 0)
+	replicaSet := make([]ReplicaNode, 0)
 	valid := replSet.ValidReplicaSet()
 	for i := range valid {
 		replica := valid[i]
@@ -111,14 +110,14 @@ retry:
 		}
 	}
 	//最近刷新的节点是我们认为最合适的
-	var best *replicaNode
+	var best *ReplicaNode
 	for i := range replicaSet {
 		replica := replicaSet[i]
 		if best == nil {
 			best = &replica
 			continue
 		}
-		if replica.RefreshAt > best.RefreshAt {
+		if replica.refreshAt > best.refreshAt {
 			best = &replica
 		}
 	}
@@ -132,7 +131,7 @@ retry:
 		}
 		//查找到合适的api网关并拼接api网关地址
 		getServer = true
-		*addr = fmt.Sprintf("http://%s%s", best.IP, best.PPort) //url address
+		*addr = best.serviceTargetUrl() //url address
 	}
 	return getServer
 }

@@ -38,7 +38,7 @@ func (c *Cors) Setup() {
 	c.enable = enable == ON && len(rules) > 0
 }
 
-func matchService(services []businessService, expr, request string) bool {
+func matchService(services []BusinessService, expr, request string) bool {
 	if expr == "" || expr == "*" {
 		return true
 	}

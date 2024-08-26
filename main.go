@@ -1,7 +1,6 @@
 package main
 
 import (
-	parallel2 "awesomeProject/pkg/parallel"
 	"context"
 	"flag"
 	"fmt"
@@ -13,8 +12,9 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	path2 "path"
+	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -27,6 +27,10 @@ const (
 const (
 	_ = iota
 	ON
+)
+
+const (
+	SECOND int64 = 1000
 )
 
 var (
@@ -47,7 +51,12 @@ var (
 	secondary bool
 )
 
+func discard(...any) {
+	//nothing to do
+}
+
 func init() {
+	environment = strings.TrimSpace(environment)
 	if environment == "debug" {
 		debug = true
 	}
@@ -62,23 +71,18 @@ func loadConf() (err error) {
 	if hostname == "" {
 		hostname = hostName
 	}
-	fileType := path2.Ext(cfgPath)
-	fmt.Println("hostname=", hostname)
-	fmt.Println("cfg file path=", cfgPath)
-	fmt.Println("cfg file type=", fileType)
+	fileType := path.Ext(cfgPath)
 	if fileType != ".toml" && fileType != ".yaml" {
 		err = errors.New("only support toml or yaml file")
 		return
 	}
 	filename := filepath.Base(cfgPath)
-	path := cfgPath[:len(cfgPath)-len(filename)]
-	fmt.Println("cfg file name=", filename)
-	fmt.Println("cfg file dir=", path)
+	searchPath := cfgPath[:len(cfgPath)-len(filename)]
 	viper.SetConfigType(fileType[1:])
 	if debug {
 		viper.SetConfigFile(cfgPath)
 	} else {
-		viper.AddConfigPath(path)
+		viper.AddConfigPath(searchPath)
 		viper.SetConfigFile(filename)
 	}
 	viper.SetDefault("hostname", hostname)
@@ -112,9 +116,6 @@ func main() {
 		fmt.Println("load config file error,", err)
 		os.Exit(1)
 	}
-	fmt.Println("serviceCache:", serviceCache)
-	fmt.Println("cluster:", cluster)
-	fmt.Println("secondary:", secondary)
 	if err := logger.Setup(); err != nil {
 		fmt.Println("log init error,", err)
 		os.Exit(1)
@@ -124,8 +125,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	execGroup := parallel2.NewExecGroup()
-	cancelGroup := parallel2.NewCancelGroup()
+	execGroup := newExecGroup()
+	cancelGroup := newCancelGroup()
 
 	//服务层面初始化
 	cors.Setup()
@@ -193,7 +194,9 @@ func startProxyServer() context.CancelFunc {
 	}()
 	return func() {
 		ctx, _ := context.WithTimeout(context.Background(), time.Second)
-		go srv.Shutdown(ctx)
+		go func() {
+			discard(srv.Shutdown(ctx))
+		}()
 	}
 }
 
@@ -220,8 +223,21 @@ func startRegisterServer() context.CancelFunc {
 	}()
 	return func() {
 		ctx, _ := context.WithTimeout(context.Background(), time.Second)
-		go srv.Shutdown(ctx)
+		go func() {
+			discard(srv.Shutdown(ctx))
+		}()
 	}
+}
+
+func clock() int64 {
+	return time.Now().UnixMilli()
+}
+
+func ToDuration(num int64, per time.Duration) time.Duration {
+	if num < 0 {
+		return time.Duration(num)
+	}
+	return time.Duration(num) * per
 }
 
 func serviceExpired(expireAt int64) bool {

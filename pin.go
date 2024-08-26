@@ -1,13 +1,12 @@
 package main
 
 import (
-	"awesomeProject/pkg/cache"
 	"context"
 	"github.com/spf13/viper"
 	"time"
 )
 
-type replicaSetPin struct {
+type ReplicaSetPin struct {
 	servers  []string
 	conns    []*connClient
 	send     *handshake
@@ -17,14 +16,14 @@ type replicaSetPin struct {
 	Result   func(handshakeBody)
 }
 
-func (pin *replicaSetPin) Setup() {
+func (pin *ReplicaSetPin) Setup() {
 	addrs := viper.GetStringSlice("cluster.replicaSet.address")
 	interval := viper.GetInt64("cluster.replicaSet.handshake.interval")
 	pin.servers = addrs
 	pin.interval = interval
 }
 
-func (pin *replicaSetPin) ready(ctx context.Context) {
+func (pin *ReplicaSetPin) ready(ctx context.Context) {
 	N := len(pin.servers)
 	conns := make([]*connClient, N)
 	for i, addr := range pin.servers {
@@ -40,8 +39,8 @@ func (pin *replicaSetPin) ready(ctx context.Context) {
 	pin.recv = recv
 }
 
-func (pin *replicaSetPin) Go(ctx context.Context) {
-	tick := time.NewTicker(cache.ToDuration(pin.interval, time.Second))
+func (pin *ReplicaSetPin) Go(ctx context.Context) {
+	tick := time.NewTicker(ToDuration(pin.interval, time.Second))
 	ctx, _ = context.WithCancel(ctx)
 	pin.ready(ctx)
 	for {
@@ -64,11 +63,11 @@ func (pin *replicaSetPin) Go(ctx context.Context) {
 	}
 }
 
-func (pin *replicaSetPin) Conn() []*connClient {
+func (pin *ReplicaSetPin) Conn() []*connClient {
 	return pin.conns[:]
 }
 
-func (pin *replicaSetPin) pin(offset int) error {
+func (pin *ReplicaSetPin) pin(offset int) error {
 	addr := pin.servers[offset]
 	conn := pin.conns[offset]
 	if err := conn.err; err != nil {

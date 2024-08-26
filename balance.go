@@ -9,7 +9,7 @@ import (
 
 type (
 	balance struct {
-		servers []businessService
+		servers []BusinessService
 		ip      string
 	}
 	Balancer struct {
@@ -30,7 +30,7 @@ func (blr *Balancer) Setup() {
 }
 
 func (blr *Balancer) Balance(request *DirectorRequest) {
-	services := make([]businessService, 0)
+	services := make([]BusinessService, 0)
 	valid := servicelist.ValidServices()
 	for i := range valid {
 		serv := valid[i]
@@ -60,7 +60,7 @@ func (blr *Balancer) Balance(request *DirectorRequest) {
 	request.SetHost(serv.Addr())
 }
 
-func (blr *Balancer) Next(b balance) businessService {
+func (blr *Balancer) Next(b balance) BusinessService {
 	switch blr.policy {
 	case "ip-hash":
 		hash0 := hashIp(b.ip)

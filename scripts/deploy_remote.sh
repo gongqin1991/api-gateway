@@ -1,59 +1,52 @@
-#!/bin/sh
+#!/bin/bash
 
 source ./funcs.sh
+source ./zip_funcs.sh
+source ./deploy_funcs.sh
 
 #工作目录
-wkname=servc
-#运行配置文件
-runcfg=cfg.toml
-#dokcerfile
-dockerfi=Dockerfile
-#docker_ports.py
-dockerpos=docker_ports.py
-#服务器名称
-sername=$1
-#部署平台
-platform=$2
+wk_name=servc
+#运行文件
+exec_file=main
+#部署环境
+deploy_dev=$1
+#目标服务器
+target_server=$2
 
 #解压源码
-clean_unzip_project $wkname
+do_unzip $wk_name --rm
 #判断工作目录是否存在
-if [ ! -d $wkname ];then
-  echo "!!!no exist directory,name:$wkname"
-  exit 1
-fi
+assert_dir $wk_name
 
-#进入工作目录
-cd $wkname
 #编译源码
-echo ">>build workspace:$(pwd)"
-go_build $wkname $sername
+echo ">>build workspace,$wk_name $deploy_dev"
+cd $wk_name && go_build $wk_name $deploy_dev
 #判断运行文件是否存在
-mainfile=main
-if [ ! -f $mainfile ];then
-  echo "!!!build fail,stop deploy"
-  exit 1
-fi
+assert_file $exec_file
 
-#重命名部署脚本
-mv deploy_docker.sh deploy.sh
+#清除源码文件
+rm -rf *.go
+rm -rf go.*
 
 #打包必要文件
-mkdir -p $wkname
-cp -p $mainfile $wkname/
-cp -p $runcfg $wkname/
-cp -p $dockerfi $wkname/
-cp -p $dockerpos $wkname/
+cd ..
+cp docker_ports.py $wk_name/ && rm -rf docker_ports.py
+cp Dockerfile $wk_name/ && rm -rf Dockerfile
+
 #压缩目录
-zip_project $wkname
+do_zip $wk_name --rm
+#重命名部署脚本
+mv deploy_target.sh deploy.sh
 #拷贝到运行服务器上
 rsyncpkg=$wkname.tar.gz
 deployfile=deploy.sh
-workdir=/var/www/backend/
-push_project_to_server root@106.75.49.211 $workdir $rsyncpkg $deployfile ../funcs.sh
+push_to_server $target_server /var/www/backend/ $wk_name.tar.gz -p 50100 --rm
+push_to_server $target_server /var/www/backend/ funcs.sh -p 50100 --rm
+push_to_server $target_server /var/www/backend/ docker_funcs.sh -p 50100 --rm
+push_to_server $target_server /var/www/backend/ deploy_funcs.sh -p 50100 --rm
+push_to_server $target_server /var/www/backend/ zip_funcs.sh -p 50100 --rm
+push_to_server $target_server /var/www/backend/ deploy.sh -p 50100 --rm
 #执行下步部署脚本
-echo ">>docker deploy..."
-next_deploy root@106.75.49.211 $workdir $deployfile $sername
-#清理本地资源
-rm -rf ../funcs.sh
+echo ">>startup..."
+exec_remote_deploy $target_server /var/www/backend/ $deployfile -p 50100 -n 1 $deploy_dev --rm
 

@@ -1,18 +1,14 @@
 package main
 
 import (
-	"awesomeProject/pkg/cache"
 	"context"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
-	"time"
 )
 
-var replSet = &ReplicaSpec{
-	ReplicaSet: &cache.MemCache[replicaNode]{LState: cache.LockSync},
-}
+var replSet = &ReplicaSpec{}
 
-var replPin = &replicaSetPin{
+var replPin = &ReplicaSetPin{
 	Message: onPinMessage,
 }
 
@@ -35,15 +31,12 @@ func MeetCluster(ctx context.Context) {
 
 func recvReplicaNode(ctx context.Context, request handshakeBody, response handshakeBody) {
 	remoteIp := cast.ToString(ctx.Value("ip"))
-	item := replicaNode{
-		IP:        remoteIp,
-		RefreshAt: time.Now().UnixMilli(),
-	}
+	item := ReplicaNode{IP: remoteIp}
 	if err := request.DecodeStruct(&item); err != nil {
 		logger.Errorf("decode request error,err:%v", err)
 	} else {
 		logger.Info("read:", item)
-		replSet.ReplicaSet.Set(remoteIp, item)
+		replSet.AddNode(remoteIp, &item)
 	}
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"awesomeProject/pkg/cache"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -9,57 +8,91 @@ import (
 	"github.com/spf13/viper"
 	"io"
 	"net/http"
-	"time"
+	"sync"
 )
 
-type replicaNode struct {
+type ReplicaNode struct {
 	IP         string
 	Port       string `mapstructure:"port"`
 	RPort      string `mapstructure:"register_port"`
 	PPort      string `mapstructure:"proxy_port"`
-	RefreshAt  int64  //刷新时间戳
+	refreshAt  int64  //刷新时间戳
 	FullReject string `mapstructure:"full_reject"` //是否达到流量上线 1:拒绝访问
 }
 
 type ReplicaSpec struct {
-	ReplicaSet *cache.MemCache[replicaNode]
+	SearchIP       map[string]*ReplicaNode
+	Nodes          []*ReplicaNode
+	serviceExpires int64
+	mu             sync.Mutex
 }
 
 func (spec *ReplicaSpec) Setup() {
 	expire := viper.GetInt64("cluster.replicaSet.handshake.service-expire")
-	spec.ReplicaSet.Expire = cache.ToDuration(expire, time.Second)
-	spec.ReplicaSet.Init()
+	spec.serviceExpires = expire
+	spec.SearchIP = make(map[string]*ReplicaNode)
+	spec.Nodes = make([]*ReplicaNode, 0)
 }
 
-func (rep replicaNode) HasService(path string) bool {
-	url := fmt.Sprintf("http://%s%s/service/match", rep.IP, rep.RPort)
-	params := map[string]any{
-		"path": path,
-	}
-	bs, _ := json.Marshal(params)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(bs))
+func (rep ReplicaNode) HasService(path string) bool {
+	var (
+		bs  []byte
+		err error
+	)
+	urlStr := rep.serviceMatchUrl()
+	bs, err = json.Marshal(map[string]any{"path": path})
+	var resp *http.Response
+	resp, err = http.Post(urlStr, "application/json", bytes.NewBuffer(bs))
 	if err != nil {
-		logger.Fatalf("get service error,url:%s,path:%s,err:%v", url, path, err)
+		logger.Fatalf("get service error,url:%s,path:%s,err:%v", urlStr, path, err)
 		return false
 	}
+	defer func() {
+		discard(resp.Body.Close())
+	}()
 	if resp.StatusCode != http.StatusOK {
-		logger.Fatalf("get service error,url:%s,path:%s,status:%v", url, path, resp.Status)
+		logger.Fatalf("get service error,url:%s,path:%s,status:%v", urlStr, path, resp.Status)
 		return false
 	}
 	result := make(map[string]any)
-	defer resp.Body.Close()
-	bs, _ = io.ReadAll(resp.Body)
-	_ = json.Unmarshal(bs, &result)
-	return cast.ToInt(result["result"]) == 1
+	bs, err = io.ReadAll(resp.Body)
+	err = json.Unmarshal(bs, &result)
+	return err == nil && cast.ToInt(result["result"]) == 1
 }
 
-func (spec *ReplicaSpec) ValidReplicaSet() []replicaNode {
-	list := make([]replicaNode, 0)
-	spec.ReplicaSet.HasNext(func(item replicaNode, expireAt int64) bool {
-		if !serviceExpired(expireAt) { //未过期
-			list = append(list, item)
+func (rep ReplicaNode) serviceMatchUrl() string {
+	return fmt.Sprintf("http://%s%s/service/match", rep.IP, rep.RPort)
+}
+
+func (rep ReplicaNode) serviceTargetUrl() string {
+	return fmt.Sprintf("http://%s%s", rep.IP, rep.PPort)
+}
+
+func (spec *ReplicaSpec) ValidReplicaSet() []ReplicaNode {
+	nodes := make([]ReplicaNode, 0)
+	spec.mu.Lock()
+	defer spec.mu.Unlock()
+	for _, node := range spec.Nodes {
+		if !serviceExpired(node.refreshAt + SECOND*spec.serviceExpires) {
+			nodes = append(nodes, *node)
 		}
-		return true
-	})
-	return list
+	}
+	return nodes
+}
+
+func (spec *ReplicaSpec) AddNode(ip string, node *ReplicaNode) {
+	node.refreshAt = clock()
+	spec.mu.Lock()
+	defer spec.mu.Unlock()
+	if item, ok := spec.SearchIP[ip]; !ok {
+		spec.Nodes = append(spec.Nodes, node)
+	} else {
+		item.refreshAt = node.refreshAt
+		item.FullReject = node.FullReject
+		item.IP = node.IP
+		item.Port = node.Port
+		item.RPort = node.RPort
+		item.PPort = node.PPort
+	}
+	spec.SearchIP[ip] = node
 }
