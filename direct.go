@@ -15,7 +15,7 @@ func DirectRequest(request *DirectorRequest) {
 	log.Info("find service start...")
 	//查找本地路由
 	for _, serv := range servicelist.ValidServices() {
-		if request.MatchPath(serv.Path) && printService(log, serv) {
+		if request.MatchPath(serv) && printService(log, serv) {
 			address = serv.Addr()
 			urlPath = request.DirectPath(serv.PrefixPath())
 			log.Infof("attached service:%v", serv)

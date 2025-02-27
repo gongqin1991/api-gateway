@@ -78,7 +78,7 @@ func matchAll(rule corsRule) bool {
 }
 
 func regexpMatch(expr, request string) bool {
-	if expr == "" || expr == "*" {
+	if expr == "" || expr == "*" || expr == ".*" {
 		return true
 	}
 	reg, err := regexp.Compile(expr)

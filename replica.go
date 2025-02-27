@@ -73,7 +73,7 @@ func (spec *ReplicaSpec) ValidReplicaSet() []ReplicaNode {
 	spec.mu.Lock()
 	defer spec.mu.Unlock()
 	for _, node := range spec.Nodes {
-		if !serviceExpired(node.refreshAt + SECOND*spec.serviceExpires) {
+		if spec.serviceExpires <= 0 || !serviceExpired(node.refreshAt+SECOND*spec.serviceExpires) {
 			nodes = append(nodes, *node)
 		}
 	}

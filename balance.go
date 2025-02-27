@@ -34,7 +34,7 @@ func (blr *Balancer) Balance(request *DirectorRequest) {
 	valid := servicelist.ValidServices()
 	for i := range valid {
 		serv := valid[i]
-		if request.MatchPath(serv.Path) && serv.Gateway {
+		if request.MatchPath(serv) && serv.Gateway {
 			services = append(services, serv)
 		}
 	}

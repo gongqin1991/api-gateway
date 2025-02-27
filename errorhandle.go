@@ -20,7 +20,7 @@ func errorHandle(resp http.ResponseWriter, request *DirectorRequest, log *Logger
 	if host, slots := request.Host, strings.Split(request.Host, ":"); len(slots) == 2 {
 		hostport := slots[1]
 		for _, serv := range servicelist.ValidServices() {
-			if request.MatchPath(serv.Path) && serv.Port != "" && serv.Port[1:] != hostport {
+			if request.MatchPath(serv) && serv.Port != "" && serv.Port[1:] != hostport {
 				log.Info("old host:", host, "new host:", serv.Addr())
 				retry = true
 				break

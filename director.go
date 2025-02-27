@@ -58,11 +58,15 @@ func (p *DirectorRequest) DirectPath(prefix string) string {
 	return p.Path()[len(prefix):]
 }
 
-func (p *DirectorRequest) MatchPath(path string) bool {
-	if path == "*" {
+func (p *DirectorRequest) MatchPath(serv BusinessService) bool {
+	path := serv.Path
+	if path == "" {
 		return true
 	}
-	return path != "" && strings.Index(p.Path(), path) == 0
+	if serv.pattern {
+		return regexpMatch(path, p.Path())
+	}
+	return strings.Index(p.Path(), path) == 0
 }
 
 func (p *DirectorRequest) AddHeader(key, value string) {

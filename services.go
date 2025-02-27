@@ -6,6 +6,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -16,7 +17,8 @@ type BusinessService struct {
 	Host      string `json:"host,omitempty" mapstructure:"host"`
 	Port      string `json:"port,omitempty" mapstructure:"port"`
 	Gateway   bool   `json:"gateway" mapstructure:"gateway"`
-	refreshAt int64
+	refreshAt int64  //最近刷新时间戳
+	pattern   bool   //正则匹配方式
 }
 
 type ServiceSpec struct {
@@ -31,6 +33,13 @@ func (spec *ServiceSpec) Setup() {
 	expire := viper.GetInt64("register.service-expire")
 	spec.serviceExpires = expire
 	spec.Services = make([]*BusinessService, 0)
+}
+
+func patternService(serv *BusinessService) {
+	if path := serv.Path; path != "" && strings.Contains(path, "*") {
+		serv.pattern = true
+		serv.Path = strings.ReplaceAll(path, "*", ".*")
+	}
 }
 
 func LoadServices(serviceCache bool) {
@@ -59,6 +68,7 @@ func LoadServices(serviceCache bool) {
 		ts := clock()
 		for _, serv := range servlist {
 			serv.refreshAt = ts
+			patternService(serv)
 		}
 		servicelist.Services = servlist
 	}
@@ -99,6 +109,10 @@ func (serv BusinessService) Addr() string {
 }
 
 func (serv BusinessService) PrefixPath() string {
+	if serv.pattern {
+		//路径匹配模式
+		return ""
+	}
 	if serv.Path != "" {
 		return serv.Path
 	}
@@ -121,6 +135,7 @@ func (spec *ServiceSpec) ValidServices() []BusinessService {
 
 func (spec *ServiceSpec) AddService(bisKey string, serv *BusinessService) {
 	serv.refreshAt = clock()
+	patternService(serv)
 	spec.mu.Lock()
 	defer spec.mu.Unlock()
 	dict := make(map[string]int)
