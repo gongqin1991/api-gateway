@@ -136,9 +136,7 @@ func main() {
 	replSet.Setup()
 	replPin.Setup()
 	//redis缓存微服务，防止容器重启或者重新部署期间丢失请求
-	if serviceCache {
-		LoadServices()
-	}
+	LoadServices(serviceCache)
 	//反向代理
 	cancelGroup.Add(startProxyServer())
 	//服务注册
@@ -206,6 +204,7 @@ func startRegisterServer() context.CancelFunc {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	serv.POST("/ping", registerService)
+	serv.POST("/bang", unregisterService)
 	serv.GET("/service/list", registeredServices)
 	serv.POST("/service/match", getService)
 	serv.GET("/rate/limit/err", reachLimit)

@@ -27,6 +27,25 @@ func registerService(c *gin.Context) {
 	c.String(http.StatusOK, "pong")
 }
 
+// @url path:/bang
+// @url method:POST
+// @url params struct:main.bisService
+// desc:服务解绑接口
+func unregisterService(c *gin.Context) {
+	req := new(BusinessService)
+	if err := c.BindJSON(req); err != nil {
+		logger.Error("request parameters", err)
+		c.String(http.StatusBadRequest, "bad request")
+		return
+	}
+	bisKey := req.Name
+	if bisKey == "" {
+		bisKey = req.Addr()
+	}
+	servicelist.RemoveService(bisKey)
+	c.String(http.StatusOK, "pong")
+}
+
 // @url path:/service/list
 // @url method:GET
 // desc:获取注册服务接口

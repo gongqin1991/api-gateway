@@ -29,17 +29,17 @@ policy = ""
 #限流
 [proxy.rate.limit]
 enable = 0
-count-second = 0 #每秒限制次数(>0)
+#count-second = 0 #每秒限制次数(>0)
 #跨域配置
 [proxy.cors]
 enable = 0
-[[proxy.cors.rules]]
-match = "" #匹配微服务名称 匹配规则为空代表全匹配 正则匹配
-match-path=""#匹配路径 匹配规则为空代表全匹配 正则匹配
-allow-origin = ""#允许源地址，默认* 逗号区隔
-allow-headers = ""#允许请求头，默认* 逗号区隔
-allow-methods = ""#允许请求方法，默认* 逗号区隔
-expose-headers = "" #扩展请求头 逗号区隔
+#[[proxy.cors.rules]]
+#match = "" #匹配微服务名称 匹配规则为空代表全匹配 正则匹配
+#match-path=""#匹配路径 匹配规则为空代表全匹配 正则匹配
+#allow-origin = ""#允许源地址，默认* 逗号区隔
+#allow-headers = ""#允许请求头，默认* 逗号区隔
+#allow-methods = ""#允许请求方法，默认* 逗号区隔
+#expose-headers = "" #扩展请求头 逗号区隔
 
 #服务注册
 [register]
@@ -51,29 +51,37 @@ service-expire = 0
 #服务缓存
 [service.cache]
 enable = 0
-name = ""#存储名称
+#name = ""#存储名称
 #微服务写入间隔时间(秒为单位)
-interval-second = 0
+#interval-second = 0
 
 #二级网关
-[secondary]
-enable = 0
+#[secondary]
+#enable = 0
 #一级网关服务注册地址
-primary = ""
+#primary = ""
 #服务注册间隔时间(秒为单位)
-interval-second = 0
+#interval-second = 0
 
 #集群
-[cluster]
-enable = 1
+#[cluster]
+#enable = 1
 #本地节点
-[cluster.local]
-ip = ""
-port = ""
+#[cluster.local]
+#ip = ""
+#port = ""
 #从节点信息
-[cluster.replicaSet]
-address = []
+#[cluster.replicaSet]
+#address = []
 #节点间握手信息
-[cluster.replicaSet.handshake]
-interval = 0 #间隔时间（秒为单位）
-service-expire = 0 #节点有效时间(秒为单位)
+#[cluster.replicaSet.handshake]
+#interval = 0 #间隔时间（秒为单位）
+#service-expire = 0 #节点有效时间(秒为单位)
+
+#静态注册服务
+#[[service.registered]]
+#ms = "" #服务名称
+#path = "" #路径路由
+#host = "" #服务主机地址
+#port = "" #服务端口
+#gateway = true #api网关服务[true:是；false:不是；]

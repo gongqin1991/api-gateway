@@ -1,0 +1,60 @@
+#通用配置
+[common]
+#部署服务所在服务器IP地址
+#此属性应用于一二级api网关之间，二级网关向一级网关注册注册自己地址
+#在同一个局域网下，可以用内网IP地址，效率更高
+local-ip = "127.0.0.1"
+[common.redis]
+addr = "10.60.44.200:6379"
+db = 0
+#运行日志配置
+#运行日志以日期为纬度去划分
+[common.log]
+#输出目录
+out-dir = "/var/log/"
+#错误日志文件名称
+error-file = "api-error.log"
+
+#反向代理服务
+[proxy]
+#默认代理服务对象地址
+target = "http://127.0.0.1:7070"
+#反向代理服务端口以:开头
+listen = ":8080"
+#负载均衡
+[proxy.balance]
+#策略[robin,ip-hash]
+policy = "robin"
+#限流
+[proxy.rate.limit]
+enable = 0
+count-second = 0 #每秒限制次数(>0)
+#跨域配置
+[proxy.cors]
+enable = 0
+
+#服务注册
+[register]
+#端口以:开头
+listen = ":7070"
+#微服务有效时间(秒为单位)
+service-expire = -1
+
+#服务缓存
+[service.cache]
+enable = 1
+name = "api:servc:list"#存储名称
+#微服务写入间隔时间(秒为单位)
+interval-second = 300
+
+#账号系统服务
+[[service.registered]]
+ms = "account"
+path = "/account"
+host = "authentication.svision100.com"
+
+#学习乐园
+[[service.registered]]
+ms = "online-study"
+path = "/online-study"
+host = "study.svision100.com"

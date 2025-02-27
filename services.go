@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"net"
 	"sync"
@@ -10,11 +11,11 @@ import (
 )
 
 type BusinessService struct {
-	Name      string `json:"ms"`
-	Path      string `json:"path"`
-	Host      string `json:"host,omitempty"`
-	Port      string `json:"port,omitempty"`
-	Gateway   bool   `json:"gateway"`
+	Name      string `json:"ms" mapstructure:"ms"`
+	Path      string `json:"path" mapstructure:"path"`
+	Host      string `json:"host,omitempty" mapstructure:"host"`
+	Port      string `json:"port,omitempty" mapstructure:"port"`
+	Gateway   bool   `json:"gateway" mapstructure:"gateway"`
 	refreshAt int64
 }
 
@@ -32,13 +33,29 @@ func (spec *ServiceSpec) Setup() {
 	spec.Services = make([]*BusinessService, 0)
 }
 
-func LoadServices() {
-	keyname := viper.GetString("service.cache.name")
-	servlistStr, err := dao.redis.Get(keyname).Result()
-	if err == nil {
-		servlist := make([]*BusinessService, 0)
-		discard(json.Unmarshal([]byte(servlistStr), &servlist))
-		fmt.Println("recovery services:", servlistStr)
+func LoadServices(serviceCache bool) {
+	servlist := make([]*BusinessService, 0)
+	loaded := false
+	if serviceCache {
+		keyname := viper.GetString("service.cache.name")
+		servlistStr, err := dao.redis.Get(keyname).Result()
+		if err == nil {
+			loaded = true
+			discard(json.Unmarshal([]byte(servlistStr), &servlist))
+			fmt.Println("recovery services:", servlistStr)
+		}
+	}
+	if !loaded {
+		//加载静态注册服务
+		if val := viper.Get("service.registered"); val != nil {
+			for _, rule := range val.([]interface{}) {
+				dst := new(BusinessService)
+				discard(mapstructure.Decode(rule, &dst))
+				servlist = append(servlist, dst)
+			}
+		}
+	}
+	if len(servlist) > 0 {
 		ts := clock()
 		for _, serv := range servlist {
 			serv.refreshAt = ts
@@ -93,7 +110,9 @@ func (spec *ServiceSpec) ValidServices() []BusinessService {
 	spec.mu.Lock()
 	defer spec.mu.Unlock()
 	for _, service := range spec.Services {
-		if !serviceExpired(service.refreshAt + SECOND*spec.serviceExpires) {
+		//服务配置没有设置有效时间
+		//服务刷新时间没有超过有效期
+		if spec.serviceExpires <= 0 || !serviceExpired(service.refreshAt+SECOND*spec.serviceExpires) {
 			services = append(services, *service)
 		}
 	}
@@ -120,4 +139,23 @@ func (spec *ServiceSpec) AddService(bisKey string, serv *BusinessService) {
 	} else {
 		spec.Services = append(spec.Services, serv)
 	}
+}
+
+func (spec *ServiceSpec) RemoveService(bisKey string) {
+	spec.mu.Lock()
+	defer spec.mu.Unlock()
+	var (
+		key string
+	)
+	services := make([]*BusinessService, 0, len(spec.Services))
+	for _, service := range spec.Services {
+		key = service.Name
+		if key == "" {
+			key = service.Addr()
+		}
+		if bisKey != key {
+			services = append(services, service)
+		}
+	}
+	spec.Services = services
 }
