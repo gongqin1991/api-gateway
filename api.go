@@ -77,7 +77,7 @@ func getService(c *gin.Context) {
 			break
 		}
 		//路径匹配
-		if req.Path != "" && strings.Index(req.Path, serv.PrefixPath()) == 0 {
+		if req.Path != "" && regexpMatch(req.Path, serv.Path) {
 			find["result"] = 1
 			find["item"] = serv
 			break

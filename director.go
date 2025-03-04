@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httputil"
-	"strings"
 )
 
 const (
@@ -59,14 +58,7 @@ func (p *DirectorRequest) DirectPath(prefix string) string {
 }
 
 func (p *DirectorRequest) MatchPath(serv BusinessService) bool {
-	path := serv.Path
-	if path == "" {
-		return true
-	}
-	if serv.pattern {
-		return regexpMatch(path, p.Path())
-	}
-	return strings.Index(p.Path(), path) == 0
+	return regexpMatch(serv.Path, p.Path())
 }
 
 func (p *DirectorRequest) AddHeader(key, value string) {

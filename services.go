@@ -6,19 +6,22 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"net"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
 
 type BusinessService struct {
-	Name      string `json:"ms" mapstructure:"ms"`
-	Path      string `json:"path" mapstructure:"path"`
-	Host      string `json:"host,omitempty" mapstructure:"host"`
-	Port      string `json:"port,omitempty" mapstructure:"port"`
-	Gateway   bool   `json:"gateway" mapstructure:"gateway"`
+	Name    string   `json:"ms" mapstructure:"ms"`
+	Path    string   `json:"path" mapstructure:"path"`
+	Host    string   `json:"host,omitempty" mapstructure:"host"`
+	Port    string   `json:"port,omitempty" mapstructure:"port"`
+	Tags    []string `json:"tags,omitempty" mapstructure:"tags"`
+	Gateway bool     `json:"gateway,omitempty" mapstructure:"gateway"`
+
+	forward   string //转发前缀
 	refreshAt int64  //最近刷新时间戳
-	pattern   bool   //正则匹配方式
 }
 
 type ServiceSpec struct {
@@ -35,11 +38,24 @@ func (spec *ServiceSpec) Setup() {
 	spec.Services = make([]*BusinessService, 0)
 }
 
-func patternService(serv *BusinessService) {
-	if path := serv.Path; path != "" && strings.Contains(path, "*") {
-		serv.pattern = true
-		serv.Path = strings.ReplaceAll(path, "*", ".*")
+func parsePath(serv *BusinessService) {
+	path := serv.Path
+	forward := ""
+	if path == "" {
+		path = ".*"
+	} else if strings.Contains(path, "*") {
+		path = strings.ReplaceAll(path, "*", ".*")
 	}
+	//!语法
+	reg := regexp.MustCompile("^/!.*?/")
+	prefix := reg.FindString(path)
+	if prefix != "" {
+		forward = prefix[:len(prefix)-1]
+		forward = strings.ReplaceAll(forward, "!", "")
+		path = forward + path[len(prefix)-1:]
+	}
+	serv.Path = path
+	serv.forward = forward
 }
 
 func LoadServices(serviceCache bool) {
@@ -68,7 +84,7 @@ func LoadServices(serviceCache bool) {
 		ts := clock()
 		for _, serv := range servlist {
 			serv.refreshAt = ts
-			patternService(serv)
+			parsePath(serv)
 		}
 		servicelist.Services = servlist
 	}
@@ -109,14 +125,7 @@ func (serv BusinessService) Addr() string {
 }
 
 func (serv BusinessService) PrefixPath() string {
-	if serv.pattern {
-		//路径匹配模式
-		return ""
-	}
-	if serv.Path != "" {
-		return serv.Path
-	}
-	return "/" + serv.Name
+	return serv.forward
 }
 
 func (spec *ServiceSpec) ValidServices() []BusinessService {
@@ -135,7 +144,7 @@ func (spec *ServiceSpec) ValidServices() []BusinessService {
 
 func (spec *ServiceSpec) AddService(bisKey string, serv *BusinessService) {
 	serv.refreshAt = clock()
-	patternService(serv)
+	parsePath(serv)
 	spec.mu.Lock()
 	defer spec.mu.Unlock()
 	dict := make(map[string]int)
