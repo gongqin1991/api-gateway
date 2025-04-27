@@ -20,6 +20,7 @@ type BusinessService struct {
 	Tags    []string `json:"tags,omitempty" mapstructure:"tags"`
 	Gateway bool     `json:"gateway,omitempty" mapstructure:"gateway"`
 
+	pattern   string //匹配路径
 	forward   string //转发前缀
 	refreshAt int64  //最近刷新时间戳
 }
@@ -54,7 +55,7 @@ func parsePath(serv *BusinessService) {
 		forward = strings.ReplaceAll(forward, "!", "")
 		path = forward + path[len(prefix)-1:]
 	}
-	serv.Path = path
+	serv.pattern = path
 	serv.forward = forward
 }
 

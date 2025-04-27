@@ -58,7 +58,7 @@ func (p *DirectorRequest) DirectPath(prefix string) string {
 }
 
 func (p *DirectorRequest) MatchPath(serv BusinessService) bool {
-	return regexpMatch(serv.Path, p.Path())
+	return regexpMatch(serv.pattern, p.Path())
 }
 
 func (p *DirectorRequest) AddHeader(key, value string) {
@@ -133,7 +133,7 @@ retry:
 }
 
 func (p *DirectorRequest) Path() string {
-	return p.RequestURI
+	return p.Request.URL.Path
 }
 
 func (p *DirectorRequest) Abort() {

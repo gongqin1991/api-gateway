@@ -1,6 +1,8 @@
 package main
 
-import "github.com/spf13/viper"
+import (
+	"github.com/spf13/viper"
+)
 
 func DirectRequest(request *DirectorRequest) {
 	log := logger.WithContext(request.Context())
@@ -13,6 +15,7 @@ func DirectRequest(request *DirectorRequest) {
 		urlPath string
 	)
 	log.Info("find service start...")
+	log.Info(request.RequestURI)
 	//查找本地路由
 	for _, serv := range servicelist.ValidServices() {
 		if request.MatchPath(serv) && printService(log, serv) {
